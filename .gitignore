@@ -1,0 +1,14 @@
+# Python (cv/)
+cv/.venv/
+cv/__pycache__/
+cv/models/
+**/__pycache__/
+
+# Node / Electron (app/)
+app/node_modules/
+app/dist/
+app/dist-electron/
+
+# OS
+.DS_Store
+Thumbs.db

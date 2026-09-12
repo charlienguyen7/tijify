@@ -209,6 +209,34 @@ Example completion message:
 
 ---
 
+## Video Feed (MJPEG)
+
+Separate from the gesture WebSocket, the Python CV process also runs a tiny
+local HTTP server that streams the annotated webcam frames it uses for
+gesture detection, so the Electron UI can show a live debug preview.
+
+- Protocol: HTTP
+- Host: `localhost`
+- Port: `8766`
+- Endpoint: `http://localhost:8766/video_feed`
+- Content-Type: `multipart/x-mixed-replace; boundary=frame` (MJPEG)
+- Resolution: ~480p, ~15 FPS (debugging feature — reliability over quality)
+
+Each frame already has MediaPipe landmarks and clap-detector debug text
+(current hand distance, detector state, a brief `CLAP DETECTED` flash)
+drawn onto it by Python before encoding, so the Electron app just needs to
+render the stream — it does no drawing or camera access of its own.
+
+The Electron app displays this stream with a plain `<img src="http://localhost:8766/video_feed">`
+element. If the stream is unavailable or disconnects, the UI shows a
+`CAMERA FEED UNAVAILABLE` placeholder instead.
+
+This HTTP stream is independent of the gesture WebSocket on port 8765 — a
+disconnect on one does not imply a disconnect on the other, and the app
+should track their connection state separately.
+
+---
+
 ## App Binding Model
 
 The CV system must not know which keyboard input a gesture is mapped to.
