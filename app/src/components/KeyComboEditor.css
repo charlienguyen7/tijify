@@ -1,0 +1,33 @@
+.key-combo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.key-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-deep);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.key-chip-remove {
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.key-combo-add {
+  min-width: 0;
+  padding: 6px 10px;
+}

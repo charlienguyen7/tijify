@@ -27,7 +27,7 @@ export default function HomeScreen({ connected, onOpenPreset, onOpenProfile }: H
 
   return (
     <div className="screen home-screen">
-      <Header title="Tijify" />
+      <Header title="Tiji" />
       <div className="row" style={{ justifyContent: "center" }}>
         <StatusBadge connected={connected} />
       </div>
@@ -47,12 +47,10 @@ export default function HomeScreen({ connected, onOpenPreset, onOpenProfile }: H
           {PRESETS.map((preset) => (
             <button key={preset.id} className="preset-card" onClick={() => onOpenPreset(preset)}>
               <strong>{preset.name}</strong>
-              <span className="text-muted">{preset.description}</span>
             </button>
           ))}
           <button className="preset-card preset-card-custom" onClick={() => onOpenPreset(CUSTOM_PRESET)}>
             <strong>Set up your own</strong>
-            <span className="text-muted">{CUSTOM_PRESET.description}</span>
           </button>
         </div>
       </div>

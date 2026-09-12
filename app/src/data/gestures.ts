@@ -43,6 +43,6 @@ export const GESTURE_MODE: Record<GestureName, Binding["mode"]> = {
   run: "hold",
 };
 
-export function createBinding(gesture: GestureName, key: string | null = null): Binding {
-  return { gesture, key, mode: GESTURE_MODE[gesture] };
+export function createBinding(gesture: GestureName, keys: string[] = []): Binding {
+  return { gesture, keys, mode: GESTURE_MODE[gesture] };
 }

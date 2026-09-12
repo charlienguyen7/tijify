@@ -35,17 +35,17 @@ export default function BindingScreen({ profile, connected, onBack, onStart, ope
   );
 
   const duplicatesFor = (binding: Binding): string[] => {
-    if (!binding.key) return [];
+    if (binding.keys.length === 0) return [];
     return bindings
-      .filter((b) => b.key === binding.key && b.gesture !== binding.gesture)
+      .filter((b) => b.gesture !== binding.gesture && b.keys.some((k) => binding.keys.includes(k)))
       .map((b) => GESTURE_LABELS[b.gesture]);
   };
 
   const handleAdd = (gesture: GestureName) => setBindings((prev) => [...prev, createBinding(gesture)]);
   const handleRemove = (gesture: GestureName) =>
     setBindings((prev) => prev.filter((b) => b.gesture !== gesture));
-  const handleKeyChange = (gesture: GestureName, key: string) =>
-    setBindings((prev) => prev.map((b) => (b.gesture === gesture ? { ...b, key } : b)));
+  const handleKeysChange = (gesture: GestureName, keys: string[]) =>
+    setBindings((prev) => prev.map((b) => (b.gesture === gesture ? { ...b, keys } : b)));
 
   const buildProfile = (finalName: string): Profile => ({
     ...profile,
@@ -148,7 +148,7 @@ export default function BindingScreen({ profile, connected, onBack, onStart, ope
       <div className="card binding-list">
         <div className="binding-list-header">
           <span>Movement</span>
-          <span>Key</span>
+          <span>Key(s)</span>
         </div>
         {bindings.length === 0 && <p className="text-muted">No movements mapped yet.</p>}
         {bindings.map((binding) => (
@@ -156,7 +156,7 @@ export default function BindingScreen({ profile, connected, onBack, onStart, ope
             key={binding.gesture}
             binding={binding}
             duplicateOf={duplicatesFor(binding)}
-            onKeyChange={(key) => handleKeyChange(binding.gesture, key)}
+            onKeysChange={(keys) => handleKeysChange(binding.gesture, keys)}
             onRemove={() => handleRemove(binding.gesture)}
           />
         ))}

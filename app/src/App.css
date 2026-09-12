@@ -57,8 +57,8 @@ button {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: clamp(12px, 3vw, 28px);
-  gap: clamp(10px, 2vw, 18px);
+  padding: clamp(16px, 4vw, 40px);
+  gap: clamp(14px, 2.5vw, 24px);
   min-width: 0;
 }
 
@@ -66,7 +66,7 @@ button {
   background: var(--color-card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  padding: clamp(14px, 2.5vw, 22px);
+  padding: clamp(18px, 3vw, 30px);
 }
 
 .stack {

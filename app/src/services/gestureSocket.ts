@@ -24,6 +24,13 @@ export class GestureSocket {
   private cancelled = false;
   private lastStateTimestamp = 0;
   private activeGestures = new Set<GestureName>();
+  // Current values, so a component that subscribes *after* the connection
+  // is already established (e.g. mounting ControllerScreen after Calibration
+  // already saw "connected") gets synced immediately instead of only
+  // hearing about the *next* change - onConnectionChange/onSnapshot are
+  // "subscribe to future events", not "give me the current value".
+  private connected = false;
+  private latestSnapshot: StateSnapshot | null = null;
 
   private connectionListeners = new Set<Listener<boolean>>();
   private snapshotListeners = new Set<Listener<StateSnapshot | null>>();
@@ -35,7 +42,7 @@ export class GestureSocket {
       if (this.lastStateTimestamp && Date.now() - this.lastStateTimestamp > STALE_THRESHOLD_MS) {
         this.activeGestures.clear();
         this.lastStateTimestamp = 0;
-        this.snapshotListeners.forEach((cb) => cb(null));
+        this.setSnapshot(null);
       }
     }, STALE_CHECK_INTERVAL_MS);
     this.openSocket();
@@ -68,17 +75,35 @@ export class GestureSocket {
     return this.activeGestures;
   }
 
+  isConnected(): boolean {
+    return this.connected;
+  }
+
+  getSnapshot(): StateSnapshot | null {
+    return this.latestSnapshot;
+  }
+
+  private setConnected(value: boolean): void {
+    this.connected = value;
+    this.connectionListeners.forEach((cb) => cb(value));
+  }
+
+  private setSnapshot(value: StateSnapshot | null): void {
+    this.latestSnapshot = value;
+    this.snapshotListeners.forEach((cb) => cb(value));
+  }
+
   private openSocket(): void {
     const socket = new WebSocket(GESTURE_WS_URL);
     this.socket = socket;
 
-    socket.onopen = () => this.connectionListeners.forEach((cb) => cb(true));
+    socket.onopen = () => this.setConnected(true);
 
     socket.onclose = () => {
-      this.connectionListeners.forEach((cb) => cb(false));
+      this.setConnected(false);
       this.activeGestures.clear();
       this.lastStateTimestamp = 0;
-      this.snapshotListeners.forEach((cb) => cb(null));
+      this.setSnapshot(null);
       if (!this.cancelled) {
         this.reconnectTimer = setTimeout(() => this.openSocket(), RECONNECT_DELAY_MS);
       }
@@ -101,14 +126,14 @@ export class GestureSocket {
         if (typeof timestamp !== "number" || !Number.isFinite(timestamp) || Date.now() - timestamp > STALE_THRESHOLD_MS) {
           this.activeGestures.clear();
           this.lastStateTimestamp = 0;
-          this.snapshotListeners.forEach((cb) => cb(null));
+          this.setSnapshot(null);
           return;
         }
         this.lastStateTimestamp = timestamp;
         this.activeGestures = new Set(
           message.active_gestures.filter((g): g is GestureName => typeof g === "string")
         );
-        this.snapshotListeners.forEach((cb) => cb(message as unknown as StateSnapshot));
+        this.setSnapshot(message as unknown as StateSnapshot);
         return; // Snapshots update display only, never trigger tap bindings.
       }
 
@@ -125,21 +150,6 @@ export class GestureSocket {
     }
     this.gestureListeners.forEach((cb) => cb(event));
   }
-
-  /**
-   * Dev-only: inject a fake gesture start/end pair through the exact same
-   * dispatch path a real CV event takes, bypassing the WebSocket entirely.
-   * Lets you verify the binding -> tap/hold/release -> SendInput chain
-   * without needing to physically perform the movement in front of the
-   * camera.
-   */
-  debugInjectGesture(gesture: GestureName, holdMs = 200): void {
-    const now = Date.now();
-    this.dispatchGestureEvent({ type: "gesture", gesture, phase: "start", confidence: 1, timestamp: now });
-    setTimeout(() => {
-      this.dispatchGestureEvent({ type: "gesture", gesture, phase: "end", confidence: 1, timestamp: Date.now() });
-    }, holdMs);
-  }
 }
 
 export interface GestureSocketState {
@@ -150,11 +160,23 @@ export interface GestureSocketState {
 
 /** Thin React binding: turns a shared GestureSocket's subscriptions into render state. */
 export function useGestureSocket(socket: GestureSocket): GestureSocketState {
-  const [connected, setConnected] = useState(false);
-  const [snapshot, setSnapshot] = useState<StateSnapshot | null>(null);
-  const [activeGestures, setActiveGestures] = useState<ReadonlySet<GestureName>>(new Set());
+  const [connected, setConnected] = useState(() => socket.isConnected());
+  const [snapshot, setSnapshot] = useState<StateSnapshot | null>(() => socket.getSnapshot());
+  const [activeGestures, setActiveGestures] = useState<ReadonlySet<GestureName>>(
+    () => new Set(socket.getActiveGestures())
+  );
 
   useEffect(() => {
+    // Re-sync to whatever's current right now: this component instance may
+    // be mounting well after the connection/snapshot events it cares about
+    // already happened (e.g. ControllerScreen mounting after Calibration
+    // already saw a connected socket) - the lazy initializers above cover
+    // the moment of mount, this covers anything that changed in the gap
+    // between that render and this effect running.
+    setConnected(socket.isConnected());
+    setSnapshot(socket.getSnapshot());
+    setActiveGestures(new Set(socket.getActiveGestures()));
+
     const unsubConnection = socket.onConnectionChange(setConnected);
     const unsubSnapshot = socket.onSnapshot((snap) => {
       setSnapshot(snap);

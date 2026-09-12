@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Modal, { type ModalConfig } from "./components/Modal";
 import type { Preset } from "./data/presets";
 import { GestureSocket, useGestureSocket } from "./services/gestureSocket";
@@ -35,12 +35,23 @@ export default function App() {
     socketRef.current.connect();
   }
   const socket = socketRef.current;
-  const { connected } = useGestureSocket(socket);
+  const { connected, snapshot } = useGestureSocket(socket);
 
   const [screen, setScreen] = useState<Screen>({ name: "splash" });
   const [modal, setModal] = useState<ModalConfig | null>(null);
   const openModal = (config: ModalConfig) => setModal(config);
   const closeModal = () => setModal(null);
+
+  // While actively playing, if the CV service loses calibration (it only
+  // resets this after ~2s of sustained tracking loss, per
+  // cv/pose_features.py - not on a single dropped frame), drop back to the
+  // calibration screen so the player knows to reposition. CalibrationScreen
+  // already returns to "controller" on its own once ready again.
+  useEffect(() => {
+    if (screen.name !== "controller") return;
+    if (snapshot && snapshot.calibration.state === "complete") return;
+    setScreen({ name: "calibration", profile: screen.profile });
+  }, [screen, snapshot]);
 
   let body: React.ReactNode;
   switch (screen.name) {

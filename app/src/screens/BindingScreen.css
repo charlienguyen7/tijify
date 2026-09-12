@@ -6,7 +6,7 @@
 
 .binding-list-header {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr minmax(120px, 1fr) auto;
   gap: 10px;
   font-size: 12px;
   text-transform: uppercase;
@@ -17,7 +17,7 @@
 
 .binding-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr minmax(120px, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 8px 4px;

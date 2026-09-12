@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import Header from "../components/Header";
+import ProgressRing from "../components/ProgressRing";
 import StatusBadge from "../components/StatusBadge";
 import VideoFeed from "../components/VideoFeed";
+import { GESTURE_LABELS, GESTURE_LIST } from "../data/gestures";
 import { useGestureSocket, type GestureSocket } from "../services/gestureSocket";
 import type { Profile } from "../types/profile";
 import "./CalibrationScreen.css";
@@ -17,7 +19,8 @@ interface CalibrationScreenProps {
 // fields invented. Auto-advances to the controller screen once every
 // condition holds.
 export default function CalibrationScreen({ profile, socket, onBack, onReady }: CalibrationScreenProps) {
-  const { connected, snapshot } = useGestureSocket(socket);
+  const { connected, snapshot, activeGestures } = useGestureSocket(socket);
+  const orderedActive = GESTURE_LIST.filter((g) => activeGestures.has(g));
 
   const ready =
     !!snapshot &&
@@ -43,20 +46,32 @@ export default function CalibrationScreen({ profile, socket, onBack, onReady }: 
           <p className="text-muted">Start the CV service to continue.</p>
         </div>
       ) : (
-        <div className="card calibration-card">
-          <VideoFeed />
-          <p className="calibration-message">
-            {snapshot?.calibration.message ?? "Step back so your full body is visible"}
-          </p>
-          <div className="calibration-progress-track">
-            <div
-              className="calibration-progress-fill"
-              style={{ width: `${Math.round((snapshot?.calibration.progress ?? 0) * 100)}%` }}
-            />
+        <div className="calibration-layout">
+          <div className="card calibration-video-card">
+            <VideoFeed>
+              <div className="calibration-ring-overlay">
+                <ProgressRing
+                  progress={snapshot?.calibration.progress ?? 0}
+                  complete={snapshot?.calibration.state === "complete"}
+                />
+              </div>
+            </VideoFeed>
+            <p className="calibration-message">
+              {snapshot?.calibration.message ?? "Step back so your full body is visible"}
+            </p>
           </div>
-          <p className="text-muted">
-            Calibration: {Math.round((snapshot?.calibration.progress ?? 0) * 100)}%
-          </p>
+
+          <div className="card">
+            <h2>Active Movements</h2>
+            {orderedActive.length === 0 && <p className="text-muted">No movement detected.</p>}
+            <div className="stack">
+              {orderedActive.map((gesture) => (
+                <div key={gesture} className="active-movement-row">
+                  <span>{GESTURE_LABELS[gesture]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
