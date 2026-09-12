@@ -19,6 +19,53 @@ All messages are JSON.
 
 ## Message Types
 
+### Current State Snapshot (`state`)
+
+Python sends this complete snapshot after each processed frame, during camera
+read failures, and on clean shutdown. New/reconnecting clients receive the most
+recent cached snapshot immediately when available. This Markdown file defines
+the contract; read live values from `ws://localhost:8765`, not from this file.
+
+```json
+{
+  "type": "state",
+  "state": "active",
+  "active_gestures": ["jump", "turn-right"],
+  "camera_connected": true,
+  "tracking": true,
+  "controller_ready": true,
+  "calibration": {
+    "state": "complete",
+    "progress": 1.0,
+    "message": "Calibrated - stay in this spot"
+  },
+  "fps": 28.4,
+  "timestamp": 1789181342000
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `state` | `active`, `neutral`, `calibrating`, `tracking-lost`, `camera-unavailable`, or `stopped` |
+| `active_gestures` | Complete sorted list of active gesture names, including overlaps; empty when neutral or not ready |
+| `camera_connected` | Whether the current camera read succeeded |
+| `tracking` | Whether the current pose passed required landmark checks |
+| `controller_ready` | Camera, pose tracking and standing calibration are ready |
+| `calibration.state` | `in-progress` or `complete`; retained calibration may be complete during temporary tracking loss |
+| `calibration.progress` | Fraction from 0 to 1 |
+| `calibration.message` | Human-readable calibration/tracking instructions |
+| `fps` | Processing FPS, not HTTP preview delivery FPS |
+| `timestamp` | Unix milliseconds at snapshot creation; replay retains the original timestamp |
+
+Replace the previous snapshot rather than merging its gesture list. Snapshots
+are for current state/display and reconciliation, **not** tap triggers: continue
+using gesture `start` events for taps. On disconnect, clear current activity and
+release held inputs. A cached snapshot may be old; use its timestamp to detect
+staleness (for example, more than two seconds), and treat a stalled stream as
+unavailable rather than assuming its last gestures remain active indefinitely.
+Clean shutdown sends `stopped` with an empty list; abrupt termination may only
+produce a socket disconnect. Existing `gesture` events below remain supported.
+
 ### 1. Gesture Event
 
 Sent when the CV system recognizes the start, continuation, or end of a supported movement.
@@ -69,6 +116,34 @@ bicep-curl
 ```
 
 Do not add new gesture names without updating this file.
+
+### Additional implemented CV gestures
+
+```text
+turn-left
+turn-right
+run
+stomp-left
+stomp-right
+```
+
+The CV service also implements `lean-left`, `lean-right`, and `walk` from the
+lists above. Left/right always refer to the person's anatomical sides. Turning
+is shoulder yaw relative to the calibrated facing direction, with neutral
+represented by neither turn gesture being active. Calibrate facing the camera.
+
+Gestures in different families may be active simultaneously (for example,
+`turn-right` and `jump`, or `lean-left`, `walk` and `stomp-right`). Clients must
+track activity per gesture name rather than replacing one global active gesture.
+Within each family, lean-left/right, turn-left/right and walk/run are exclusive;
+switches emit the old gesture's `end` before the new gesture's `start`.
+
+Walk/run describe alternating steps in place. Running uses a faster cadence
+threshold and is a heuristic rather than a biomechanical gait diagnosis.
+Stomps are short start/active/end pulses based on a lifted foot returning
+quickly near its floor reference; vision does not measure impact force.
+Both-foot jump landings do not count as stomps. Loss of tracking ends all
+active gestures. No JSON field changes are required.
 
 ---
 

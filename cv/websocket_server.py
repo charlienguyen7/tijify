@@ -5,7 +5,7 @@ capture) thread can stay simple, synchronous OpenCV code. Call
 `start_in_background_thread()` once, then use `broadcast_gesture_threadsafe(...)`
 from any other thread to push an event out to all connected clients.
 
-Protocol: see shared/protocol.md. Only "gesture" events are emitted here.
+Protocol: see shared/protocol.md. Emits gesture events and full state snapshots.
 """
 
 from __future__ import annotations
@@ -25,10 +25,13 @@ class GestureServer:
     def __init__(self) -> None:
         self._clients: set[websockets.WebSocketServerProtocol] = set()
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._latest_state: dict | None = None
 
     async def _handler(self, websocket) -> None:
         self._clients.add(websocket)
         try:
+            if self._latest_state is not None:
+                await websocket.send(json.dumps(self._latest_state))
             async for _ in websocket:
                 pass  # this server is send-only; ignore anything the client sends
         finally:
@@ -46,6 +49,16 @@ class GestureServer:
                 dead.append(client)
         for client in dead:
             self._clients.discard(client)
+
+    async def _publish_state(self, message: dict) -> None:
+        self._latest_state = message
+        await self._broadcast(message)
+
+    def broadcast_state_threadsafe(self, message: dict):
+        """Cache even with no clients; replay the latest snapshot on connection."""
+        if self._loop is not None:
+            return asyncio.run_coroutine_threadsafe(self._publish_state(message), self._loop)
+        return None
 
     async def _serve_forever(self) -> None:
         async with websockets.serve(self._handler, HOST, PORT):

@@ -13,14 +13,6 @@ interface Binding {
 
 const DEFAULT_BINDING: Binding = { gesture: "clap", keys: ["SPACE"], mode: "tap" };
 
-interface GestureEvent {
-  type: string;
-  gesture: string;
-  phase: "start" | "active" | "end";
-  confidence: number;
-  timestamp: number;
-}
-
 // Normalize a physical KeyboardEvent.code into the same names used for
 // bindings (SPACE, ENTER, A, ARROWLEFT, ...), just for display purposes.
 function normalizeKeyCode(code: string): string {
@@ -51,7 +43,7 @@ export default function App() {
   const [bindingInput, setBindingInput] = useState(DEFAULT_BINDING.keys[0]);
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
 
-  // Current gesture reflects whichever live signal is active: a CV clap
+  // Current gesture reflects all active CV movements; CV state
   // takes priority, otherwise any physically-held key, otherwise "-".
   const currentGesture = cvGesture ?? (pressedKeys.size > 0 ? [...pressedKeys].join("+") : "-");
 
@@ -79,6 +71,15 @@ export default function App() {
     let socket: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout>;
     let cancelled = false;
+    const activeGestures = new Set<string>();
+    let lastStateTimestamp = 0;
+    const staleTimer = setInterval(() => {
+      if (lastStateTimestamp && Date.now() - lastStateTimestamp > 2000) {
+        activeGestures.clear();
+        setCvGesture("STATE UNAVAILABLE");
+        lastStateTimestamp = 0;
+      }
+    }, 500);
 
     const connect = () => {
       socket = new WebSocket(GESTURE_WS_URL);
@@ -88,21 +89,46 @@ export default function App() {
       socket.onclose = () => {
         setCvConnected(false);
         setCvGesture(null);
+        activeGestures.clear();
+        lastStateTimestamp = 0;
         if (!cancelled) reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
       };
 
       socket.onerror = () => socket.close();
 
       socket.onmessage = (event) => {
-        const data: GestureEvent = JSON.parse(event.data);
-        if (data.type !== "gesture") return;
+        let data;
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+        if (!data || typeof data !== "object") return;
+        if (data.type === "state" && Array.isArray(data.active_gestures)) {
+          activeGestures.clear();
+          if (typeof data.timestamp !== "number" || !Number.isFinite(data.timestamp)
+              || Date.now() - data.timestamp > 2000) {
+            setCvGesture("STATE UNAVAILABLE");
+            return;
+          }
+          lastStateTimestamp = data.timestamp;
+          for (const gesture of data.active_gestures) {
+            if (typeof gesture === "string") activeGestures.add(gesture);
+          }
+          const label = [...activeGestures].map((g) => g.toUpperCase()).join(" + ");
+          setCvGesture(label || (typeof data.state === "string" ? data.state.toUpperCase() : null));
+          return; // Snapshots update display, never trigger tap bindings.
+        }
+        if (data.type !== "gesture" || typeof data.gesture !== "string") return;
 
         if (data.phase === "start") {
-          setCvGesture(data.gesture.toUpperCase());
+          activeGestures.add(data.gesture);
+          setCvGesture([...activeGestures].map((g) => g.toUpperCase()).join(" + "));
           // Tap bindings only react to "start" — ignore "active"/"end".
           handleGesture(data.gesture);
         } else if (data.phase === "end") {
-          setCvGesture(null);
+          activeGestures.delete(data.gesture);
+          setCvGesture([...activeGestures].map((g) => g.toUpperCase()).join(" + ") || null);
         }
       };
     };
@@ -111,6 +137,7 @@ export default function App() {
     return () => {
       cancelled = true;
       clearTimeout(reconnectTimer);
+      clearInterval(staleTimer);
       socket?.close();
     };
   }, [handleGesture]);
