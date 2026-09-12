@@ -3,7 +3,10 @@ export {};
 declare global {
   interface Window {
     tijify: {
-      tapKey: (keys: string[]) => Promise<void>;
+      tap: (key: string) => Promise<void>;
+      hold: (key: string) => Promise<void>;
+      release: (key: string) => Promise<void>;
+      releaseAll: () => Promise<void>;
     };
   }
 }

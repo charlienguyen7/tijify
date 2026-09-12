@@ -1,0 +1,12 @@
+.splash-screen {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.splash-title {
+  font-size: clamp(32px, 8vw, 52px);
+  color: var(--color-primary-dark);
+  letter-spacing: 1px;
+}

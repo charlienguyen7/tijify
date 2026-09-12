@@ -22,13 +22,30 @@ function createWindow(): void {
   }
 }
 
-ipcMain.handle("input:tap", (_event, keys: string[]) => {
-  InputController.tap(keys);
+ipcMain.handle("input:tap", (_event, key: string) => {
+  InputController.tap(key);
+});
+ipcMain.handle("input:hold", (_event, key: string) => {
+  InputController.hold(key);
+});
+ipcMain.handle("input:release", (_event, key: string) => {
+  InputController.release(key);
+});
+ipcMain.handle("input:releaseAll", () => {
+  InputController.releaseAll();
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  InputController.warmUp(); // Pay the one-time Add-Type JIT cost while the splash screen shows.
+  createWindow();
+});
+
+app.on("before-quit", () => {
+  InputController.shutdown();
+});
 
 app.on("window-all-closed", () => {
+  InputController.shutdown();
   if (process.platform !== "darwin") app.quit();
 });
 

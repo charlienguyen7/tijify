@@ -1,0 +1,79 @@
+.binding-screen {
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.binding-list-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  padding: 0 4px 8px;
+}
+
+.binding-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+}
+
+.binding-row-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.binding-row-remove {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.binding-row-warning {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: #b23b2e;
+  background: rgba(242, 139, 130, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+}
+
+.add-movement-menu {
+  position: relative;
+  margin-top: 12px;
+}
+
+.add-movement-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 6px;
+  gap: 2px;
+}
+
+.add-movement-option {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.add-movement-option:hover {
+  background: var(--color-bg-deep);
+}
+
+.binding-actions {
+  justify-content: flex-end;
+}
