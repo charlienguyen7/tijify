@@ -4,7 +4,8 @@ Webcam -> MediaPipe pose -> overlapping movements -> WebSocket events
                                                   -> annotated MJPEG video
 
 Run with: python main.py
-Stop with: Q in the preview or terminal, close the preview, or Ctrl+C
+Preview: http://localhost:8766/video_feed (or the Electron app)
+Stop with: Q in the terminal or Ctrl+C. Optional window: --debug-preview
 
 Uses the MediaPipe Tasks API. The pose model downloads to ./models/
 on first run. Stand upright and still for the initial three-second calibration.
@@ -109,7 +110,7 @@ def draw_overlay(frame, fps, movement, calibration, features):
         f"FPS: {fps:.1f}",
         *textwrap.wrap(f"Movement: {movement}", width=65),
         calibration.message,
-        "Press Q in this window or terminal to quit",
+        "Press Q in the terminal to quit",
     ]
     if features:
         lines.append(f"Hip drop: {features.hip_drop:.2f} | Knee bend: {features.knee_bend:.0f} deg")
@@ -125,6 +126,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Calibrated overlapping body movement detection")
     parser.add_argument("--camera", type=int, default=1,
                         help="Camera index (default: 1 for an external webcam; try 0 or 2 if needed)")
+    parser.add_argument("--debug-preview", action="store_true",
+                        help="Also open a separate OpenCV preview window (Q or close to exit)")
     args = parser.parse_args()
     ensure_model()
 
@@ -150,9 +153,11 @@ def main() -> None:
 
     resources = ExitStack()
     resources.callback(cap.release)
-    resources.callback(cv2.destroyAllWindows)
+    if args.debug_preview:
+        resources.callback(cv2.destroyAllWindows)
     try:
-        cv2.namedWindow(PREVIEW_WINDOW, cv2.WINDOW_AUTOSIZE)
+        if args.debug_preview:
+            cv2.namedWindow(PREVIEW_WINDOW, cv2.WINDOW_AUTOSIZE)
         pose_landmarker = resources.enter_context(vision.PoseLandmarker.create_from_options(
             vision.PoseLandmarkerOptions(
                 base_options=BaseOptions(model_asset_path=POSE_MODEL_PATH),
@@ -167,7 +172,8 @@ def main() -> None:
         resources.close()
         raise
 
-    print("[main] Tijify CV service running. Press Q in the preview or terminal to stop (or Ctrl+C).")
+    print("[main] Preview: http://localhost:8766/video_feed | State: ws://localhost:8765")
+    print("[main] Press Q in this terminal to stop (or Ctrl+C).")
 
     start_time = time.monotonic()
     last_timestamp = -1
@@ -191,7 +197,7 @@ def main() -> None:
                 if encoded:
                     frame_buffer.update(jpeg.tobytes())
                 frame_times.clear()
-                if show_preview(missing):
+                if args.debug_preview and show_preview(missing):
                     break
                 time.sleep(0.05)
                 continue
@@ -228,7 +234,7 @@ def main() -> None:
             ok, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
             if ok:
                 frame_buffer.update(jpeg.tobytes())
-            if show_preview(frame):
+            if args.debug_preview and show_preview(frame):
                 break
 
     except KeyboardInterrupt:

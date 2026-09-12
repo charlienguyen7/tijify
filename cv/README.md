@@ -13,9 +13,12 @@ processing FPS, movement classification, calibration progress,
 hip drop and knee bend. Preview delivery remains capped at 15 FPS independently
 of the displayed processing FPS.
 
-A local OpenCV window shows the annotated preview. Press **Q in that window**
-or close it to stop. Q in the Windows terminal and Ctrl+C also work.
-The HTTP/Electron preview remains available but does not capture keys.
+The default preview is served over localhost inside the Electron app; no separate
+OpenCV window opens. State and gesture events use `ws://localhost:8765`.
+Press **Q in the Windows terminal** or Ctrl+C to stop.
+The HTTP/Electron video feed does not capture quit keys.
+For a separate debugging window, add `--debug-preview`; Q in that window or
+closing it also stops the program.
 
 Camera index **1** is the default, usually the external webcam when the laptop
 camera is index 0. Device ordering varies: use `--camera 0` or `--camera 2` if
