@@ -18,8 +18,8 @@
 
   --shadow-card: 0 4px 16px rgba(95, 145, 200, 0.16);
 
-  --font-heading: "Segoe UI Rounded", "Nunito", sans-serif;
-  --font-body: "Segoe UI Rounded", "Nunito", sans-serif;
+  --font-heading: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  --font-body: "Nunito", "Segoe UI Rounded", sans-serif;
 }
 
 * {
