@@ -1,5 +1,9 @@
 # Tijify
 
+CV now includes calibrated crouch and jump detection, plus FPS and movement
+labels in the preview. See [CV setup and calibration](cv/README.md) for usage
+and camera requirements; the original clap walkthrough below still applies.
+
 HackRice 16 Project
 
 A vertical-slice prototype proving one architecture:
