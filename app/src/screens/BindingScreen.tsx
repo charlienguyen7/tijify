@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import AddMovementMenu from "../components/AddMovementMenu";
 import BindingRow from "../components/BindingRow";
 import Header from "../components/Header";
@@ -19,7 +19,7 @@ interface BindingScreenProps {
   closeModal: () => void;
 }
 
-export default function BindingScreen({ profile, connected, onBack, onStart, openModal, closeModal }: BindingScreenProps) {
+function BindingScreen({ profile, connected, onBack, onStart, openModal, closeModal }: BindingScreenProps) {
   const [bindings, setBindings] = useState<Binding[]>(() => profile.bindings.map((b) => ({ ...b })));
   const [name, setName] = useState(profile.name);
   // A ref (not state) so the modal's onClick - captured once when the modal
@@ -174,3 +174,5 @@ export default function BindingScreen({ profile, connected, onBack, onStart, ope
     </div>
   );
 }
+
+export default memo(BindingScreen);

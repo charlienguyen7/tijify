@@ -158,39 +158,65 @@ export interface GestureSocketState {
   activeGestures: ReadonlySet<GestureName>;
 }
 
-/** Thin React binding: turns a shared GestureSocket's subscriptions into render state. */
-export function useGestureSocket(socket: GestureSocket): GestureSocketState {
+const sameGestures = (a: ReadonlySet<GestureName>, b: ReadonlySet<GestureName>): boolean =>
+  a.size === b.size && [...a].every((g) => b.has(g));
+
+/**
+ * Focused hooks below so each screen only re-renders for the slice it
+ * actually reads, rather than every consumer sharing one hook that
+ * re-renders on every connection change, snapshot tick (broadcast
+ * throttled to ~12Hz, but still frequent), and raw gesture event combined.
+ * ControllerScreen, for instance, never reads `snapshot` but previously
+ * re-rendered on every snapshot broadcast anyway because the old combined
+ * hook's internal setSnapshot lived in its component state.
+ */
+
+export function useGestureConnection(socket: GestureSocket): boolean {
   const [connected, setConnected] = useState(() => socket.isConnected());
+  useEffect(() => {
+    setConnected(socket.isConnected()); // re-sync: socket may have changed state before this effect ran
+    return socket.onConnectionChange(setConnected);
+  }, [socket]);
+  return connected;
+}
+
+export function useGestureSnapshot(socket: GestureSocket): StateSnapshot | null {
   const [snapshot, setSnapshot] = useState<StateSnapshot | null>(() => socket.getSnapshot());
+  useEffect(() => {
+    setSnapshot(socket.getSnapshot());
+    return socket.onSnapshot(setSnapshot);
+  }, [socket]);
+  return snapshot;
+}
+
+export function useActiveGestures(socket: GestureSocket): ReadonlySet<GestureName> {
   const [activeGestures, setActiveGestures] = useState<ReadonlySet<GestureName>>(
     () => new Set(socket.getActiveGestures())
   );
-
   useEffect(() => {
-    // Re-sync to whatever's current right now: this component instance may
-    // be mounting well after the connection/snapshot events it cares about
-    // already happened (e.g. ControllerScreen mounting after Calibration
-    // already saw a connected socket) - the lazy initializers above cover
-    // the moment of mount, this covers anything that changed in the gap
-    // between that render and this effect running.
-    setConnected(socket.isConnected());
-    setSnapshot(socket.getSnapshot());
-    setActiveGestures(new Set(socket.getActiveGestures()));
-
-    const unsubConnection = socket.onConnectionChange(setConnected);
-    const unsubSnapshot = socket.onSnapshot((snap) => {
-      setSnapshot(snap);
-      setActiveGestures(new Set(socket.getActiveGestures()));
-    });
-    const unsubGesture = socket.onGestureEvent(() => {
-      setActiveGestures(new Set(socket.getActiveGestures()));
-    });
+    // Bail out (return the same reference) when the content hasn't actually
+    // changed, so a snapshot tick that doesn't touch active gestures - most
+    // of them - doesn't force a re-render.
+    const sync = () =>
+      setActiveGestures((prev) => {
+        const next = socket.getActiveGestures();
+        return sameGestures(prev, next) ? prev : new Set(next);
+      });
+    sync();
+    const unsubSnapshot = socket.onSnapshot(sync);
+    const unsubGesture = socket.onGestureEvent(sync);
     return () => {
-      unsubConnection();
       unsubSnapshot();
       unsubGesture();
     };
   }, [socket]);
+  return activeGestures;
+}
 
+/** Convenience for screens that genuinely need all three (e.g. CalibrationScreen). */
+export function useGestureSocket(socket: GestureSocket): GestureSocketState {
+  const connected = useGestureConnection(socket);
+  const snapshot = useGestureSnapshot(socket);
+  const activeGestures = useActiveGestures(socket);
   return { connected, snapshot, activeGestures };
 }

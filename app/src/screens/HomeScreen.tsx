@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import Header from "../components/Header";
+import ResizableVideoFeed from "../components/ResizableVideoFeed";
 import StatusBadge from "../components/StatusBadge";
 import { HOME_INSTRUCTIONS } from "../data/instructions";
 import { CUSTOM_PRESET, PRESETS, type Preset } from "../data/presets";
@@ -13,7 +14,7 @@ interface HomeScreenProps {
   onOpenProfile: (profile: Profile) => void;
 }
 
-export default function HomeScreen({ connected, onOpenPreset, onOpenProfile }: HomeScreenProps) {
+function HomeScreen({ connected, onOpenPreset, onOpenProfile }: HomeScreenProps) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
   useEffect(() => {
@@ -27,51 +28,90 @@ export default function HomeScreen({ connected, onOpenPreset, onOpenProfile }: H
 
   return (
     <div className="screen home-screen">
+      {/* Hidden filter def (0x0, not rendered itself) that .home-screen
+          .header-title references via `filter: url(#title-wobble)` - a
+          real pixel displacement of the glyph shapes (like After Effects'
+          Displace effect), not just a CSS transform wobble, which can only
+          move the whole text box rigidly. The animated feTurbulence
+          baseFrequency is what makes the noise pattern slowly morph over
+          time instead of sitting static. */}
+      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
+        <filter id="title-wobble">
+          <feTurbulence type="fractalNoise" baseFrequency="0.01 0.02" numOctaves="2" seed="3" result="noise">
+            <animate
+              attributeName="baseFrequency"
+              dur="6s"
+              values="0.008 0.016;0.013 0.021;0.008 0.016"
+              calcMode="spline"
+              keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+              keyTimes="0;0.5;1"
+              repeatCount="indefinite"
+            />
+          </feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
       <Header title="tiji" />
-      <div className="row" style={{ justifyContent: "center" }}>
-        <StatusBadge connected={connected} />
-      </div>
 
-      <div className="card">
-        <h2>Instructions</h2>
-        <ol className="home-instructions">
-          {HOME_INSTRUCTIONS.map((line, i) => (
-            <li key={i}>{line}</li>
-          ))}
-        </ol>
-      </div>
-
-      <div className="card">
-        <h2>Choose your game</h2>
-        <div className="preset-grid">
-          {PRESETS.map((preset) => (
-            <button key={preset.id} className="preset-card" onClick={() => onOpenPreset(preset)}>
-              <strong>{preset.name}</strong>
-            </button>
-          ))}
-          <button className="preset-card preset-card-custom" onClick={() => onOpenPreset(CUSTOM_PRESET)}>
-            <strong>Set up your own</strong>
-          </button>
-        </div>
-      </div>
-
-      {profiles.length > 0 && (
-        <div className="card">
-          <h2>Your saved profiles</h2>
-          <div className="stack">
-            {profiles.map((profile) => (
-              <div key={profile.id} className="saved-profile-row">
-                <button className="saved-profile-open" onClick={() => onOpenProfile(profile)}>
-                  {profile.name}
-                </button>
-                <button className="btn btn-danger" onClick={() => handleDelete(profile.id)}>
-                  Delete
-                </button>
-              </div>
-            ))}
+      <div className="home-layout">
+        <div className="card home-video-card">
+          <div className="home-card-header">
+            <h2>Live Camera</h2>
+            <StatusBadge connected={connected} />
           </div>
+          <ResizableVideoFeed />
+          <p className="text-muted">Drag the bottom-right corner to resize.</p>
         </div>
-      )}
+
+        <div className="home-content">
+          <div className="card">
+            <h2>Instructions</h2>
+            <ol className="home-instructions">
+              {HOME_INSTRUCTIONS.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="card">
+            <h2>Choose your preset</h2>
+            <div className="preset-grid">
+              {PRESETS.map((preset) => (
+                <button key={preset.id} className="preset-card" onClick={() => onOpenPreset(preset)}>
+                  <strong>{preset.name}</strong>
+                </button>
+              ))}
+              <button
+                className="preset-card preset-card-custom"
+                onClick={() => onOpenPreset(CUSTOM_PRESET)}
+                aria-label="Set up your own"
+              >
+                <strong>+</strong>
+              </button>
+            </div>
+          </div>
+
+          {profiles.length > 0 && (
+            <div className="card">
+              <h2>Your saved profiles</h2>
+              <div className="stack">
+                {profiles.map((profile) => (
+                  <div key={profile.id} className="saved-profile-row">
+                    <button className="saved-profile-open" onClick={() => onOpenProfile(profile)}>
+                      {profile.name}
+                    </button>
+                    <button className="btn btn-danger" onClick={() => handleDelete(profile.id)}>
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
+
+export default memo(HomeScreen);

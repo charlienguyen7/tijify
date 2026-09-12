@@ -11,6 +11,7 @@
   --color-success: #6fcf97;
   --color-danger: #f28b82;
   --color-warning: #f4b942;
+  --color-splash-bg: #89cff0;
 
   --radius-sm: 8px;
   --radius-md: 16px;
@@ -37,6 +38,39 @@ body {
   color: var(--color-text);
 }
 
+/* Fixed behind everything (z-index below the normal-flow app content, but
+   above the plain body color) rather than set directly as `body`'s
+   background so opacity/animation only affect the texture, never the page
+   content painted on top of it. Slowly panning + zooming keeps it feeling
+   alive without being distracting or needing any JS. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: url("./assets/background.png");
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  background-size: 120%;
+  opacity: 0.50;
+  animation: bg-drift 50s ease-in-out infinite alternate;
+}
+
+@keyframes bg-drift {
+  0% {
+    background-position: 20% 30%;
+    background-size: 130%;
+  }
+  50% {
+    background-position: 50% 60%;
+    background-size: 145%;
+  }
+  100% {
+    background-position: 80% 40%;
+    background-size: 130%;
+  }
+}
+
 .app {
   min-height: 100vh;
   display: flex;
@@ -51,6 +85,39 @@ h1, h2, h3 {
 button {
   font-family: inherit;
   cursor: pointer;
+}
+
+.home-reveal {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  clip-path: inset(100% 0 0 0);
+  pointer-events: none;
+}
+
+.home-reveal.home-reveal-visible {
+  /* Shorter than the mascot's 1.8s rocket-launch segment so it finishes
+     unveiling before he clears the top of the screen - but using the SAME
+     easing curve as his launch (SplashScreen.css's cubic-bezier(0.45, 0,
+     0.8, 0.2)) is what actually matters here: both start at the same
+     instant, but a curtain with a fast-start curve visibly races ahead of
+     a mascot with a slow-start curve even though they're in sync on paper.
+     Matching the curve keeps their progress locked together frame-by-frame. */
+  animation: home-drape-reveal 1.3s cubic-bezier(0.45, 0, 0.8, 0.2) forwards;
+  pointer-events: auto;
+}
+
+/* Timed to match the mascot's rocket-launch segment (1800-3600ms) in
+   SplashScreen.css so the UI unveils bottom-to-top as if the character
+   is dragging it open like a drape while he flies up past it. */
+@keyframes home-drape-reveal {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0% 0 0 0);
+  }
 }
 
 .screen {

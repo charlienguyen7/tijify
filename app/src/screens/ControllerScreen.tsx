@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import GestureToast from "../components/GestureToast";
 import Header from "../components/Header";
+import ResizableVideoFeed from "../components/ResizableVideoFeed";
 import StatusBadge from "../components/StatusBadge";
-import VideoFeed from "../components/VideoFeed";
 import { GESTURE_LABELS, GESTURE_LIST } from "../data/gestures";
-import { useGestureSocket, type GestureSocket } from "../services/gestureSocket";
+import { useActiveGestures, useGestureConnection, type GestureSocket } from "../services/gestureSocket";
 import type { GestureEvent } from "../types/gesture";
 import type { Binding, Profile } from "../types/profile";
 import "./ControllerScreen.css";
@@ -49,8 +49,12 @@ function useInputEffect(socket: GestureSocket, bindings: Binding[], enabled: boo
   return lastStart;
 }
 
-export default function ControllerScreen({ profile, socket, onStop, onBackToHome }: ControllerScreenProps) {
-  const { connected, activeGestures } = useGestureSocket(socket);
+function ControllerScreen({ profile, socket, onStop, onBackToHome }: ControllerScreenProps) {
+  // Deliberately not useGestureSocket: this screen never reads `snapshot`,
+  // and subscribing to it would re-render on every ~12Hz state broadcast in
+  // addition to the gesture events it actually needs.
+  const connected = useGestureConnection(socket);
+  const activeGestures = useActiveGestures(socket);
   // Readiness gate removed: gestures now drive keyboard output as soon as
   // they're detected, regardless of the CV service's own reported
   // tracking/calibration state.
@@ -92,9 +96,10 @@ export default function ControllerScreen({ profile, socket, onStop, onBackToHome
 
       <div className="controller-layout">
         <div className="card controller-video-card">
-          <VideoFeed>
+          <ResizableVideoFeed>
             <GestureToast lastStart={lastStart} />
-          </VideoFeed>
+          </ResizableVideoFeed>
+          <p className="text-muted">Drag the bottom-right corner to resize.</p>
         </div>
 
         <div className="controller-bottom-row">
@@ -140,3 +145,5 @@ export default function ControllerScreen({ profile, socket, onStop, onBackToHome
     </div>
   );
 }
+
+export default memo(ControllerScreen);

@@ -1,5 +1,5 @@
 .home-screen {
-  max-width: 1100px;
+  max-width: 1860px;
   margin: 0 auto;
   width: 100%;
   gap: 22px;
@@ -7,6 +7,59 @@
 
 .home-screen h2 {
   font-size: clamp(20px, 2.4vw, 26px);
+  text-align: center;
+}
+
+.home-screen .header-title {
+  font-size: clamp(90px, 12vw, 150px);
+  color: #298956;
+  /* Displacement-map wobble: strength is the filter's `scale` attribute
+     (HomeScreen.tsx), speed is its `dur`, both set fairly subtle - tune
+     those, not anything here, for more/less wobble. */
+  filter: url(#title-wobble);
+}
+
+.home-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, max-content) minmax(300px, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.home-video-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 20px;
+}
+
+/* Left column tracks the resizable video's actual width (see
+   ResizableVideoFeed) instead of a fixed fr share, so dragging it wider
+   actually grows the column rather than overflowing. */
+.home-content {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .home-video-card {
+    position: static;
+  }
 }
 
 .home-instructions {
@@ -47,6 +100,12 @@
 
 .preset-card-custom {
   background: var(--color-accent);
+}
+
+.preset-card-custom strong {
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 400;
 }
 
 .saved-profile-row {

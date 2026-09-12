@@ -3,17 +3,17 @@ import mascotImage from "../assets/mascot.png";
 interface MascotProps {
   size?: number;
   className?: string;
+  onAnimationEnd?: () => void;
 }
 
-export default function Mascot({ size = 96, className }: MascotProps) {
+export default function Mascot({ size, className, onAnimationEnd }: MascotProps) {
   return (
     <img
       src={mascotImage}
       alt="tiji mascot"
       className={className}
-      width={size}
-      height={size}
-      style={{ objectFit: "contain" }}
+      onAnimationEnd={onAnimationEnd}
+      {...(size ? { width: size, height: size, style: { objectFit: "contain" as const } } : {})}
     />
   );
 }

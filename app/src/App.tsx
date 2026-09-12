@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Modal, { type ModalConfig } from "./components/Modal";
 import type { Preset } from "./data/presets";
-import { GestureSocket, useGestureSocket } from "./services/gestureSocket";
+import { GestureSocket, useGestureConnection, useGestureSnapshot } from "./services/gestureSocket";
 import BindingScreen from "./screens/BindingScreen";
 import CalibrationScreen from "./screens/CalibrationScreen";
 import ControllerScreen from "./screens/ControllerScreen";
@@ -10,7 +10,6 @@ import SplashScreen from "./screens/SplashScreen";
 import type { Profile } from "./types/profile";
 
 type Screen =
-  | { name: "splash" }
   | { name: "home" }
   | { name: "binding"; profile: Profile }
   | { name: "calibration"; profile: Profile }
@@ -35,12 +34,18 @@ export default function App() {
     socketRef.current.connect();
   }
   const socket = socketRef.current;
-  const { connected, snapshot } = useGestureSocket(socket);
+  // App only ever reads `connected` and `snapshot` (for the redirect effect
+  // below) - never `activeGestures` - so it subscribes to just those two
+  // instead of the combined useGestureSocket, which would otherwise also
+  // re-render this (and everything under it) on every raw gesture event.
+  const connected = useGestureConnection(socket);
+  const snapshot = useGestureSnapshot(socket);
 
-  const [screen, setScreen] = useState<Screen>({ name: "splash" });
+  const [screen, setScreen] = useState<Screen>({ name: "home" });
+  const [splashPhase, setSplashPhase] = useState<"idle" | "launching" | "done">("idle");
   const [modal, setModal] = useState<ModalConfig | null>(null);
-  const openModal = (config: ModalConfig) => setModal(config);
-  const closeModal = () => setModal(null);
+  const openModal = useCallback((config: ModalConfig) => setModal(config), []);
+  const closeModal = useCallback(() => setModal(null), []);
 
   // While actively playing, if the CV service loses calibration (it only
   // resets this after ~2s of sustained tracking loss, per
@@ -53,18 +58,26 @@ export default function App() {
     setScreen({ name: "calibration", profile: screen.profile });
   }, [screen, snapshot]);
 
+  // Stable identities so the memoized screens below (React.memo) actually
+  // skip re-rendering when App re-renders for unrelated reasons - an inline
+  // arrow prop would defeat that on every single App render.
+  const goHome = useCallback(() => setScreen({ name: "home" }), []);
+  const openBinding = useCallback(
+    (preset: Preset) => setScreen({ name: "binding", profile: draftProfileFromPreset(preset) }),
+    []
+  );
+  const openProfile = useCallback((profile: Profile) => setScreen({ name: "binding", profile }), []);
+  const startCalibration = useCallback((profile: Profile) => setScreen({ name: "calibration", profile }), []);
+  const handleLaunch = useCallback(() => setSplashPhase("launching"), []);
+  const handleSplashDone = useCallback(() => setSplashPhase("done"), []);
+
   let body: React.ReactNode;
   switch (screen.name) {
-    case "splash":
-      body = <SplashScreen onDone={() => setScreen({ name: "home" })} />;
-      break;
     case "home":
       body = (
-        <HomeScreen
-          connected={connected}
-          onOpenPreset={(preset) => setScreen({ name: "binding", profile: draftProfileFromPreset(preset) })}
-          onOpenProfile={(profile) => setScreen({ name: "binding", profile })}
-        />
+        <div className={`home-reveal${splashPhase !== "idle" ? " home-reveal-visible" : ""}`}>
+          <HomeScreen connected={connected} onOpenPreset={openBinding} onOpenProfile={openProfile} />
+        </div>
       );
       break;
     case "binding":
@@ -72,8 +85,8 @@ export default function App() {
         <BindingScreen
           profile={screen.profile}
           connected={connected}
-          onBack={() => setScreen({ name: "home" })}
-          onStart={(profile) => setScreen({ name: "calibration", profile })}
+          onBack={goHome}
+          onStart={startCalibration}
           openModal={openModal}
           closeModal={closeModal}
         />
@@ -84,7 +97,7 @@ export default function App() {
         <CalibrationScreen
           profile={screen.profile}
           socket={socket}
-          onBack={() => setScreen({ name: "home" })}
+          onBack={goHome}
           onReady={() => setScreen({ name: "controller", profile: screen.profile })}
         />
       );
@@ -95,7 +108,7 @@ export default function App() {
           profile={screen.profile}
           socket={socket}
           onStop={() => setScreen({ name: "binding", profile: screen.profile })}
-          onBackToHome={() => setScreen({ name: "home" })}
+          onBackToHome={goHome}
         />
       );
       break;
@@ -104,6 +117,9 @@ export default function App() {
   return (
     <div className="app">
       {body}
+      {splashPhase !== "done" && (
+        <SplashScreen launching={splashPhase === "launching"} onLaunch={handleLaunch} onDone={handleSplashDone} />
+      )}
       <Modal
         open={modal !== null}
         title={modal?.title ?? ""}

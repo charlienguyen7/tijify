@@ -1,0 +1,33 @@
+.resizable-video {
+  position: relative;
+  max-width: 100%;
+}
+
+.resizable-video .video-box {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.resizable-video-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.resizable-video-handle::before {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 10px;
+  height: 10px;
+  border-right: 3px solid rgba(255, 255, 255, 0.7);
+  border-bottom: 3px solid rgba(255, 255, 255, 0.7);
+  border-radius: 0 0 3px 0;
+}

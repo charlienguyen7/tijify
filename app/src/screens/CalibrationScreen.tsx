@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import Header from "../components/Header";
 import ProgressRing from "../components/ProgressRing";
+import ResizableVideoFeed from "../components/ResizableVideoFeed";
 import StatusBadge from "../components/StatusBadge";
-import VideoFeed from "../components/VideoFeed";
 import { GESTURE_LABELS, GESTURE_LIST } from "../data/gestures";
 import { useGestureSocket, type GestureSocket } from "../services/gestureSocket";
 import type { Profile } from "../types/profile";
@@ -18,7 +18,7 @@ interface CalibrationScreenProps {
 // Readiness gate straight from protocol.md's state snapshot fields - no new
 // fields invented. Auto-advances to the controller screen once every
 // condition holds.
-export default function CalibrationScreen({ profile, socket, onBack, onReady }: CalibrationScreenProps) {
+function CalibrationScreen({ profile, socket, onBack, onReady }: CalibrationScreenProps) {
   const { connected, snapshot, activeGestures } = useGestureSocket(socket);
   const orderedActive = GESTURE_LIST.filter((g) => activeGestures.has(g));
 
@@ -48,17 +48,18 @@ export default function CalibrationScreen({ profile, socket, onBack, onReady }: 
       ) : (
         <div className="calibration-layout">
           <div className="card calibration-video-card">
-            <VideoFeed>
+            <ResizableVideoFeed>
               <div className="calibration-ring-overlay">
                 <ProgressRing
                   progress={snapshot?.calibration.progress ?? 0}
                   complete={snapshot?.calibration.state === "complete"}
                 />
               </div>
-            </VideoFeed>
+            </ResizableVideoFeed>
             <p className="calibration-message">
               {snapshot?.calibration.message ?? "Step back so your full body is visible"}
             </p>
+            <p className="text-muted">Drag the bottom-right corner to resize.</p>
           </div>
 
           <div className="card">
@@ -77,3 +78,5 @@ export default function CalibrationScreen({ profile, socket, onBack, onReady }: 
     </div>
   );
 }
+
+export default memo(CalibrationScreen);

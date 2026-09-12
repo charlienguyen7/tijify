@@ -38,6 +38,11 @@ from current_state import build_state
 CAPTURE_WIDTH = 640
 CAPTURE_HEIGHT = 480
 PREVIEW_WINDOW = "Tijify - Movement Detection"
+# Display-only snapshot, not the gesture-input path (those broadcast
+# immediately, unthrottled) - capping it well below the capture rate keeps
+# the renderer from re-rendering on every processed frame. See protocol.md's
+# STALE_THRESHOLD (2s) for how much slack the client tolerates.
+STATE_BROADCAST_INTERVAL = 1 / 12
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
 POSE_MODEL_PATH = os.path.join(MODEL_DIR, "pose_landmarker_full.task")
@@ -145,6 +150,14 @@ def main() -> None:
     cap = cv2.VideoCapture(args.camera)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAPTURE_WIDTH)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAPTURE_HEIGHT)
+    # Without this, most backends queue several frames internally; once
+    # per-frame processing (MediaPipe inference, mainly) falls behind the
+    # camera's capture rate - e.g. while the Electron window is fullscreen
+    # and competing for the same CPU - that queue backs up and cap.read()
+    # starts handing back increasingly stale frames, which reads as
+    # growing lag rather than just a lower frame rate. Keeping only 1
+    # buffered frame means a slow frame is dropped, not queued.
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     if not cap.isOpened():
         print(f"[main] ERROR: could not open camera {args.camera}. Try --camera 0 or --camera 2.")
@@ -177,7 +190,16 @@ def main() -> None:
 
     start_time = time.monotonic()
     last_timestamp = -1
+    last_state_broadcast = 0.0
     frame_times = deque(maxlen=30)
+
+    def broadcast_state(message: dict, now: float) -> None:
+        nonlocal last_state_broadcast
+        if now - last_state_broadcast < STATE_BROADCAST_INTERVAL:
+            return
+        last_state_broadcast = now
+        gesture_server.broadcast_state_threadsafe(message)
+
     print("[main] Face the camera and stand still for 3 seconds with both feet visible.")
     print("[main] Leave the frame for 2 seconds and return to recalibrate.")
     try:
@@ -189,7 +211,7 @@ def main() -> None:
                 for event in engine.update(None, now):
                     if event.phase:
                         gesture_server.broadcast_gesture_threadsafe(event.gesture, event.phase, event.confidence)
-                gesture_server.broadcast_state_threadsafe(build_state(calibration, camera_connected=False, tracking=False))
+                broadcast_state(build_state(calibration, camera_connected=False, tracking=False), now)
                 # Replace the preview instead of leaving a stale active label on screen.
                 missing = np.zeros((CAPTURE_HEIGHT, CAPTURE_WIDTH, 3), dtype=np.uint8)
                 draw_overlay(missing, 0, "TRACKING LOST", calibration, None)
@@ -228,8 +250,8 @@ def main() -> None:
             fps = ((len(frame_times) - 1) / (frame_times[-1] - frame_times[0])
                    if len(frame_times) > 1 and frame_times[-1] > frame_times[0] else 0)
             draw_overlay(frame, fps, movement, calibration, features)
-            gesture_server.broadcast_state_threadsafe(build_state(
-                calibration, events, camera_connected=True, tracking=sample is not None, fps=fps))
+            broadcast_state(build_state(
+                calibration, events, camera_connected=True, tracking=sample is not None, fps=fps), now)
 
             ok, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
             if ok:
