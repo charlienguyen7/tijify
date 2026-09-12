@@ -27,7 +27,7 @@ export default function HomeScreen({ connected, onOpenPreset, onOpenProfile }: H
 
   return (
     <div className="screen home-screen">
-      <Header title="Tiji" />
+      <Header title="tiji" />
       <div className="row" style={{ justifyContent: "center" }}>
         <StatusBadge connected={connected} />
       </div>

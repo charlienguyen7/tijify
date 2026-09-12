@@ -9,7 +9,7 @@ export default function Mascot({ size = 96, className }: MascotProps) {
   return (
     <img
       src={mascotImage}
-      alt="Tiji mascot"
+      alt="tiji mascot"
       className={className}
       width={size}
       height={size}

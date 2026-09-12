@@ -21,7 +21,7 @@ export default function SplashScreen({ onDone }: SplashScreenProps) {
   return (
     <div className="screen splash-screen">
       <Mascot size={140} />
-      <h1 className="splash-title">Tiji</h1>
+      <h1 className="splash-title">tiji</h1>
     </div>
   );
 }
