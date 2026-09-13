@@ -12,11 +12,56 @@
 
 .home-screen .header-title {
   font-size: clamp(90px, 12vw, 150px);
-  color: #298956;
+  /* Set per-background preset by useBackgroundPreference (bright green for
+     hacker, off-white for UT/Rice, etc.) - see data/backgrounds.ts. */
+  color: var(--home-title-color);
+  transition: color 0.4s ease;
   /* Displacement-map wobble: strength is the filter's `scale` attribute
      (HomeScreen.tsx), speed is its `dur`, both set fairly subtle - tune
      those, not anything here, for more/less wobble. */
   filter: url(#title-wobble);
+}
+
+.bg-picker-btn {
+  border: none;
+  background: var(--color-bg-deep);
+  color: var(--color-text);
+  font-size: 18px;
+  line-height: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.bg-picker-btn:hover {
+  background: var(--color-border);
+}
+
+.bg-picker-btn:active {
+  transform: scale(0.94);
+}
+
+/* Wavy card blocks: the filter can't go on `.card` itself - that would
+   distort the instructions text and buttons inside it too, not just the
+   block's shape. Instead the actual background/shadow moves onto a ::before
+   layer sized to match the card exactly, and only THAT layer gets wobbled;
+   the real content keeps rendering normally on top, unaffected. */
+.home-screen .card {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  box-shadow: none;
+}
+
+.home-screen .card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-card);
+  border-radius: inherit;
+  box-shadow: var(--shadow-card);
+  filter: url(#card-wobble);
 }
 
 .home-card-header {

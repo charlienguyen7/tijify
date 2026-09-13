@@ -13,6 +13,14 @@
   --color-warning: #f4b942;
   --color-splash-bg: #89cff0;
 
+  /* Overridden at runtime by useBackgroundPreference (HomeScreen's
+     background picker) via inline styles on <html>, which always win over
+     these defaults - these three just cover first paint before that effect
+     runs, and match the "keycaps" preset in data/backgrounds.ts. */
+  --bg-image: url("./assets/background.png");
+  --bg-opacity: 0.5;
+  --home-title-color: #298956;
+
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
@@ -48,12 +56,13 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background-image: url("./assets/background.png");
+  background-image: var(--bg-image);
   background-repeat: no-repeat;
   background-position: 50% 50%;
   background-size: 120%;
-  opacity: 0.50;
+  opacity: var(--bg-opacity);
   animation: bg-drift 50s ease-in-out infinite alternate;
+  transition: opacity 0.4s ease;
 }
 
 @keyframes bg-drift {
