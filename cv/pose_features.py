@@ -80,7 +80,12 @@ def read_pose(result, width: int, height: int) -> tuple[PoseSample | None, str]:
         if not (0.015 < p.x < 0.985 and 0.015 < p.y < 0.985):
             return None, "Step back - shoulders through feet must fit"
     confidence = min(min(p.visibility or 0, p.presence or 0) for p in (landmarks[i] for i in REQUIRED))
-    if not math.isfinite(confidence) or confidence < 0.65:
+    # Lowered from 0.65: this gates every single frame, so ordinary movement
+    # (a step, a lean) briefly dips landmark visibility/presence and the
+    # whole frame got discarded as "weak" - compounding with the
+    # calibration-drift checks below to drop tracking more readily than the
+    # actual pose quality warranted.
+    if not math.isfinite(confidence) or confidence < 0.5:
         return None, "Tracking weak - show both legs and feet"
     # Pixel coordinates account for image aspect ratio before projection.
     points = tuple((p.x * width, p.y * height) for p in landmarks)
@@ -135,7 +140,12 @@ class PoseCalibration:
         base = self.baseline
         # Turning is now an intentional movement, not a calibration failure.
         sideways = abs(dot(subtract(midpoint(*sample.feet), midpoint(*base.feet)), self.right)) / self.scale
-        if not 0.78 < sample.torso / base.torso < 1.22 or sideways > 0.40:
+        # Widened from (0.78, 1.22) / 0.40: those reset the whole calibration
+        # (dropping every movement event until recalibrated) for even a
+        # small step off the original spot. This still catches someone
+        # actually walking away or repositioning, just not a half-step's
+        # worth of ordinary drift.
+        if not 0.65 < sample.torso / base.torso < 1.35 or sideways > 0.65:
             self.reset()
             self.message = "View/position changed - stand still to recalibrate"
             return None

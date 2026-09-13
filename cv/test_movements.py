@@ -85,7 +85,10 @@ class CalibrationTests(unittest.TestCase):
 
     def test_loss_and_distance_change_recalibrate(self):
         c = calibrated()
-        self.assertIsNone(c.update(sample(torso_ratio=1.3), 3.4))
+        # Ratio band widened to (0.65, 1.35) so a small step no longer drops
+        # calibration - 1.5 is still well outside it, so this still proves a
+        # real distance change (not just drift) recalibrates.
+        self.assertIsNone(c.update(sample(torso_ratio=1.5), 3.4))
         self.assertIsNone(c.baseline)
         c = calibrated()
         c.update(None, 4)
